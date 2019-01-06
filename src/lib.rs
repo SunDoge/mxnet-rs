@@ -1,6 +1,8 @@
-pub mod ndarray;
-pub mod error;
+#[macro_use]
 pub mod base;
+
+pub mod error;
+pub mod ndarray;
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,3 @@
-use crate::base::check_call;
 use mxnet_sys::{
     MXGetGPUCount, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetShape, NDArrayHandle,
 };
@@ -46,9 +45,7 @@ impl Context {
 
     pub fn num_gpus() -> usize {
         let mut count = 0;
-        unsafe {
-            MXGetGPUCount(&mut count);
-        }
+        check_call!(MXGetGPUCount(&mut count));
         count as usize
     }
 }
@@ -60,9 +57,7 @@ pub struct NDArray {
 impl NDArray {
     pub fn new() -> NDArray {
         let mut handle = ptr::null_mut();
-        unsafe {
-            check_call(MXNDArrayCreateNone(&mut handle)).unwrap();
-        }
+        check_call!(MXNDArrayCreateNone(&mut handle));
         NDArray { handle }
     }
 
