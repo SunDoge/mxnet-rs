@@ -1,4 +1,6 @@
 pub mod ndarray;
+pub mod error;
+pub mod base;
 
 #[cfg(test)]
 mod tests {

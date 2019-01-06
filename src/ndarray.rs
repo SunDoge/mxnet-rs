@@ -1,10 +1,14 @@
-use mxnet_sys::{MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetShape, NDArrayHandle};
+use crate::base::check_call;
+use mxnet_sys::{
+    MXGetGPUCount, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetShape, NDArrayHandle,
+};
 use std::{ptr, slice};
 
 pub enum DeviceType {
     CPU = 1,
     GPU = 2,
     CPUPinned = 3,
+    CPUShared = 5,
 }
 
 pub struct Context {
@@ -35,6 +39,18 @@ impl Context {
     pub fn cpu() -> Context {
         Context::new(DeviceType::CPU, 0)
     }
+
+    pub fn cpu_pinned() -> Context {
+        Context::new(DeviceType::CPUPinned, 0)
+    }
+
+    pub fn num_gpus() -> usize {
+        let mut count = 0;
+        unsafe {
+            MXGetGPUCount(&mut count);
+        }
+        count as usize
+    }
 }
 
 pub struct NDArray {
@@ -45,7 +61,7 @@ impl NDArray {
     pub fn new() -> NDArray {
         let mut handle = ptr::null_mut();
         unsafe {
-            assert_eq!(MXNDArrayCreateNone(&mut handle), 0);
+            check_call(MXNDArrayCreateNone(&mut handle)).unwrap();
         }
         NDArray { handle }
     }
