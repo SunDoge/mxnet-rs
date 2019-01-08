@@ -1,54 +1,21 @@
+pub mod operator;
+
 use mxnet_sys::{
-    MXGetGPUCount, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetShape, NDArrayHandle,
+    MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetDType, MXNDArrayGetShape,
+    NDArrayHandle,
 };
 use std::{ptr, slice};
 
-pub enum DeviceType {
-    CPU = 1,
-    GPU = 2,
-    CPUPinned = 3,
-    CPUShared = 5,
-}
-
-pub struct Context {
-    device_type: DeviceType,
-    device_id: i32,
-}
-
-impl Context {
-    pub fn new(device_type: DeviceType, device_id: i32) -> Context {
-        Context {
-            device_type,
-            device_id,
-        }
-    }
-
-    pub fn device_type(&self) -> &DeviceType {
-        &self.device_type
-    }
-
-    pub fn device_id(&self) -> i32 {
-        self.device_id
-    }
-
-    pub fn gpu(device_id: i32) -> Context {
-        Context::new(DeviceType::GPU, device_id)
-    }
-
-    pub fn cpu() -> Context {
-        Context::new(DeviceType::CPU, 0)
-    }
-
-    pub fn cpu_pinned() -> Context {
-        Context::new(DeviceType::CPUPinned, 0)
-    }
-
-    pub fn num_gpus() -> usize {
-        let mut count = 0;
-        check_call!(MXGetGPUCount(&mut count));
-        count as usize
-    }
-}
+// pub enum DType {
+//     None = -1,
+//     F32 = 0,
+//     F64 = 1,
+//     F16 = 2,
+//     U8 = 3,
+//     I32 = 4,
+//     I8 = 5,
+//     I64 = 6,
+// }
 
 pub struct NDArray {
     handle: NDArrayHandle,
@@ -60,7 +27,10 @@ impl NDArray {
         check_call!(MXNDArrayCreateNone(&mut handle));
         NDArray { handle }
     }
+}
 
+/// Properties
+impl NDArray {
     pub fn size(&self) -> usize {
         self.raw_shape().iter().fold(1, |acc, x| acc * *x)
     }
@@ -74,13 +44,27 @@ impl NDArray {
         ret
     }
 
+    // Not sure if we want a enum instead of i32.
+    // Not sure if we realy want dtype.
+    pub fn dtype(&self) -> i32 {
+        self.raw_dtype()
+    }
+}
+
+/// Private
+impl NDArray {
     fn raw_shape(&self) -> &[usize] {
         let mut out_dim = 0;
         let mut out_pdata = ptr::null();
-        unsafe {
-            MXNDArrayGetShape(self.handle, &mut out_dim, &mut out_pdata);
-            slice::from_raw_parts(out_pdata as *const usize, out_dim as usize)
-        }
+
+        check_call!(MXNDArrayGetShape(self.handle, &mut out_dim, &mut out_pdata));
+        unsafe { slice::from_raw_parts(out_pdata as *const usize, out_dim as usize) }
+    }
+
+    fn raw_dtype(&self) -> i32 {
+        let mut mx_dtype = 0;
+        check_call!(MXNDArrayGetDType(self.handle, &mut mx_dtype));
+        mx_dtype
     }
 }
 
@@ -91,6 +75,8 @@ impl Drop for NDArray {
         }
     }
 }
+
+pub fn ones() {}
 
 #[cfg(test)]
 mod tests {

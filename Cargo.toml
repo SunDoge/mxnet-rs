@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 mxnet-sys = { git="https://github.com/SunDoge/mxnet-sys" }
+lazy_static = "1.2"
