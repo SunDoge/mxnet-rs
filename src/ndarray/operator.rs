@@ -6,10 +6,16 @@ use std::collections::HashMap;
 use std::ffi::CStr;
 use std::ptr;
 
+lazy_static! {
+    static ref OP_MAP: OpMap = OpMap::new();
+}
+
 pub struct OpMap {
     symbol_creators: HashMap<String, AtomicSymbolCreator>,
     op_handles: HashMap<String, OpHandle>,
 }
+
+unsafe impl Sync for OpMap {}
 
 impl OpMap {
     pub fn new() -> OpMap {
@@ -74,6 +80,17 @@ impl OpMap {
 
         op_map
     }
+
+    pub fn get_symbol_creator(&self, name: &str) -> AtomicSymbolCreator {
+        *self
+            .symbol_creators
+            .get(name)
+            .unwrap_or(&self.get_op_handle(name))
+    }
+
+    pub fn get_op_handle(&self, name: &str) -> OpHandle {
+        self.op_handles[name]
+    }
 }
 
 pub struct Operator {
@@ -82,8 +99,8 @@ pub struct Operator {
 
 impl Operator {
     pub fn new(operator_name: &str) -> Operator {
-        let creator: AtomicSymbolCreator = ptr::null_mut();
-        Operator { handle: creator }
+        let handle = OP_MAP.get_symbol_creator(operator_name);
+        Operator { handle }
     }
 }
 
@@ -93,6 +110,11 @@ mod tests {
 
     #[test]
     fn create_op_map() {
-        let _op_map = OpMap::new();
+        let op_map = OpMap::new();
+        let _add = op_map.get_op_handle("_add");
+    }
+
+    fn create_operator() {
+        let _operator = Operator::new("_add");
     }
 }
