@@ -6,7 +6,7 @@ use mxnet_sys::*;
 use std::ptr;
 
 fn main() {
-    println!("{}", context::num_gpus());
+    println!("num gpus: {}", context::num_gpus());
 
     unsafe {
         let mut plist = ptr::null_mut();

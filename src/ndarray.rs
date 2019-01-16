@@ -1,8 +1,7 @@
 pub mod operator;
 
 use mxnet_sys::{
-    MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetDType, MXNDArrayGetShape,
-    NDArrayHandle,
+    MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetDType, MXNDArrayGetShape, NDArrayHandle,
 };
 use std::{ptr, slice};
 
