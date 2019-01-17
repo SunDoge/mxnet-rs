@@ -1,11 +1,25 @@
 use mxnet_sys::{MXGetGPUCount, MXGetGPUMemoryInformation64};
 
-#[derive(Debug, Copy, Clone)]
+pub use DeviceType::*;
+
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeviceType {
     CPU = 1,
     GPU = 2,
     CPUPinned = 3,
     CPUShared = 5,
+}
+
+impl From<i32> for DeviceType {
+    fn from(int: i32) -> DeviceType {
+        match int {
+            1 => CPU,
+            2 => GPU,
+            3 => CPUPinned,
+            5 => CPUShared,
+            _ => panic!("No DeviceType for {}", int),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -33,20 +47,20 @@ impl Context {
 
 impl Default for Context {
     fn default() -> Context {
-        Context::new(DeviceType::CPU, 0)
+        Context::new(CPU, 0)
     }
 }
 
 pub fn gpu(device_id: i32) -> Context {
-    Context::new(DeviceType::GPU, device_id)
+    Context::new(GPU, device_id)
 }
 
 pub fn cpu() -> Context {
-    Context::new(DeviceType::CPU, 0)
+    Context::new(CPU, 0)
 }
 
 pub fn cpu_pinned() -> Context {
-    Context::new(DeviceType::CPUPinned, 0)
+    Context::new(CPUPinned, 0)
 }
 
 pub fn num_gpus() -> usize {

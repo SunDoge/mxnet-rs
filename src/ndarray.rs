@@ -1,12 +1,15 @@
 pub mod operator;
 
-use crate::context::Context;
+use crate::context::{Context, DeviceType};
 use mxnet_sys::{
-    MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetDType, MXNDArrayGetShape,
-    MXNDArraySyncCopyFromCPU, NDArrayHandle,
+    MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetContext, MXNDArrayGetDType,
+    MXNDArrayGetShape, MXNDArraySyncCopyFromCPU, MXNDArrayWaitToRead, MXNDArrayWaitToWrite,
+    NDArrayHandle,
 };
+use operator::Operator;
 use std::ffi::c_void;
-use std::mem;
+use std::fmt;
+use std::rc::Rc;
 use std::{ptr, slice};
 
 // pub enum DType {
@@ -20,21 +23,63 @@ use std::{ptr, slice};
 //     I64 = 6,
 // }
 
-pub struct NDArray {
+struct NDBlob {
     handle: NDArrayHandle,
+}
+
+impl NDBlob {
+    pub fn new(handle: NDArrayHandle) -> NDBlob {
+        NDBlob { handle }
+    }
+
+    pub fn handle(&self) -> NDArrayHandle {
+        self.handle
+    }
+}
+
+// For memory safe.
+impl Drop for NDBlob {
+    fn drop(&mut self) {
+        unsafe {
+            MXNDArrayFree(self.handle());
+        }
+    }
+}
+
+pub struct NDArray {
+    blob: Rc<NDBlob>,
 }
 
 impl NDArray {
     pub fn new() -> NDArray {
         let mut handle = ptr::null_mut();
         check_call!(MXNDArrayCreateNone(&mut handle));
-        NDArray { handle }
+        NDArray {
+            blob: Rc::new(NDBlob::new(handle)),
+        }
+    }
+
+    pub fn wait_to_read(&self) {
+        check_call!(MXNDArrayWaitToRead(self.handle()));
+    }
+
+    pub fn wait_to_write(&self) {
+        check_call!(MXNDArrayWaitToWrite(self.handle()));
+    }
+
+    pub fn copy_to(&self, mut other: NDArray) -> NDArray {
+        Operator::new("copyto")
+            .push_input(self)
+            .invoke_with(&mut other);
+        other
     }
 }
 
 impl From<NDArrayHandle> for NDArray {
     fn from(handle: NDArrayHandle) -> NDArray {
-        NDArray { handle }
+        NDArray {
+            blob: Rc::new(NDBlob::new(handle)),
+        }
     }
 }
 
@@ -60,7 +105,18 @@ impl NDArray {
     }
 
     pub fn handle(&self) -> NDArrayHandle {
-        self.handle
+        self.blob.handle()
+    }
+
+    pub fn context(&self) -> Context {
+        let mut out_dev_type = 0;
+        let mut out_dev_id = 0;
+        check_call!(MXNDArrayGetContext(
+            self.handle(),
+            &mut out_dev_type,
+            &mut out_dev_id
+        ));
+        Context::new(DeviceType::from(out_dev_type), out_dev_id)
     }
 }
 
@@ -70,22 +126,26 @@ impl NDArray {
         let mut out_dim = 0;
         let mut out_pdata = ptr::null();
 
-        check_call!(MXNDArrayGetShape(self.handle, &mut out_dim, &mut out_pdata));
+        check_call!(MXNDArrayGetShape(
+            self.handle(),
+            &mut out_dim,
+            &mut out_pdata
+        ));
         unsafe { slice::from_raw_parts(out_pdata, out_dim as usize) }
     }
 
     fn raw_dtype(&self) -> i32 {
         let mut mx_dtype = 0;
-        check_call!(MXNDArrayGetDType(self.handle, &mut mx_dtype));
+        check_call!(MXNDArrayGetDType(self.handle(), &mut mx_dtype));
         mx_dtype
     }
 }
 
-impl Drop for NDArray {
-    fn drop(&mut self) {
-        unsafe {
-            MXNDArrayFree(self.handle);
-        }
+impl fmt::Display for NDArray {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let _shape = self.shape();
+
+        write!(f, "NDArray")
     }
 }
 
@@ -136,6 +196,7 @@ impl NDArrayBuilder {
             self.shape.len() as u32,
             self.context.device_type() as i32,
             self.context.device_id() as i32,
+            // Only when no data do we delay alloc.
             (self.data.is_empty() && self.delay_alloc) as i32,
             &mut handle
         ));
@@ -148,7 +209,9 @@ impl NDArrayBuilder {
             ));
         }
 
-        NDArray { handle }
+        NDArray {
+            blob: Rc::new(NDBlob::new(handle)),
+        }
     }
 }
 
@@ -172,5 +235,7 @@ mod tests {
             .data(&[1.0, 2.0])
             .shape(&[2, 1])
             .create();
+        let _a3 = NDArrayBuilder::new().shape(&[2, 3]).create();
+        let _a4 = NDArrayBuilder::new().create();
     }
 }
