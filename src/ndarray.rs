@@ -40,9 +40,10 @@ impl NDBlob {
 // For memory safe.
 impl Drop for NDBlob {
     fn drop(&mut self) {
-        unsafe {
-            MXNDArrayFree(self.handle());
-        }
+        // unsafe {
+        //     MXNDArrayFree(self.handle());
+        // }
+        check_call!(MXNDArrayFree(self.handle()));
     }
 }
 

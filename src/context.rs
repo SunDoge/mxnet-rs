@@ -17,7 +17,7 @@ impl From<i32> for DeviceType {
             2 => GPU,
             3 => CPUPinned,
             5 => CPUShared,
-            _ => panic!("No DeviceType for {}", int),
+            _ => unreachable!(),
         }
     }
 }

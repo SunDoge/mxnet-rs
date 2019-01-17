@@ -7,6 +7,7 @@ pub mod base;
 pub mod context;
 pub mod error;
 pub mod ndarray;
+pub mod symbol;
 
 #[cfg(test)]
 mod tests {
