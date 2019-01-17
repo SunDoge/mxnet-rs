@@ -28,6 +28,12 @@ impl NDArray {
     }
 }
 
+impl From<NDArrayHandle> for NDArray {
+    fn from(handle: NDArrayHandle) -> NDArray {
+        NDArray { handle }
+    }
+}
+
 /// Properties
 impl NDArray {
     pub fn size(&self) -> usize {
@@ -47,6 +53,10 @@ impl NDArray {
     // Not sure if we realy want dtype.
     pub fn dtype(&self) -> i32 {
         self.raw_dtype()
+    }
+
+    pub fn handle(&self) -> NDArrayHandle {
+        self.handle
     }
 }
 
