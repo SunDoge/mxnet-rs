@@ -217,19 +217,40 @@ impl Operator {
             output_handles.push(*handle);
         }
     }
+
+    pub fn push_input(&mut self, ndarray: &NDArray) -> &mut Self {
+        self.input_ndarrays.push(ndarray.handle());
+        self
+    }
+
+    pub fn set_input(&mut self, name: &str, ndarray: &NDArray) -> &mut Self {
+        self.input_keys.push(name.to_owned());
+        self.input_ndarrays.push(ndarray.handle());
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ndarray;
 
     #[test]
     fn create_op_map() {
         let op_map = OpMap::new();
-        let _add = op_map.get_op_handle("_add");
+        let _add = op_map.get_op_handle("_plus");
     }
 
+    #[test]
     fn create_operator() {
-        let _operator = Operator::new("_add");
+        let a1 = ndarray::NDArrayBuilder::new().data(&[1.0]).create();
+        let a2 = ndarray::NDArrayBuilder::new().data(&[1.0]).create();
+        let mut a3 = ndarray::NDArray::new();
+        Operator::new("_plus")
+            .push_input(&a1)
+            .push_input(&a2)
+            .invoke_with(&mut a3);
+
+        println!("{:?}", a3.size());
     }
 }

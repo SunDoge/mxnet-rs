@@ -1,5 +1,6 @@
 use mxnet_sys::{MXGetGPUCount, MXGetGPUMemoryInformation64};
 
+#[derive(Debug, Copy, Clone)]
 pub enum DeviceType {
     CPU = 1,
     GPU = 2,
@@ -7,6 +8,7 @@ pub enum DeviceType {
     CPUShared = 5,
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct Context {
     device_type: DeviceType,
     device_id: i32,
@@ -20,8 +22,8 @@ impl Context {
         }
     }
 
-    pub fn device_type(&self) -> &DeviceType {
-        &self.device_type
+    pub fn device_type(&self) -> DeviceType {
+        self.device_type
     }
 
     pub fn device_id(&self) -> i32 {
