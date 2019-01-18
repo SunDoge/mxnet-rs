@@ -4,12 +4,13 @@ use crate::base::GetHandle;
 use crate::context::{Context, DeviceType};
 use mxnet_sys::{
     MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetContext, MXNDArrayGetDType,
-    MXNDArrayGetShape, MXNDArraySyncCopyFromCPU, MXNDArrayWaitToRead, MXNDArrayWaitToWrite,
-    NDArrayHandle,
+    MXNDArrayGetData, MXNDArrayGetShape, MXNDArraySyncCopyFromCPU, MXNDArrayWaitToRead,
+    MXNDArrayWaitToWrite, NDArrayHandle,
 };
 use operator::Operator;
 use std::ffi::c_void;
 use std::fmt;
+use std::mem;
 use std::rc::Rc;
 use std::{ptr, slice};
 
@@ -99,6 +100,7 @@ impl Drop for NDBlob {
     }
 }
 
+#[derive(Clone)]
 pub struct NDArray {
     blob: Rc<NDBlob>,
 }
@@ -130,10 +132,8 @@ impl NDArray {
         check_call!(MXNDArrayWaitToWrite(self.handle()));
     }
 
-    pub fn copy_to(&self, mut other: NDArray) -> NDArray {
-        Operator::new("copyto")
-            .push_input(self)
-            .invoke_with(&mut other);
+    pub fn copy_to<'a>(&self, other: &'a mut NDArray) -> &'a mut NDArray {
+        Operator::new("copyto").push_input(self).invoke_with(other);
         other
     }
 
@@ -187,6 +187,12 @@ impl NDArray {
         ));
         Context::new(DeviceType::from(out_dev_type), out_dev_id)
     }
+
+    pub fn data(&self) -> &[f32] {
+        let mut ret = ptr::null_mut();
+        check_call!(MXNDArrayGetData(self.handle(), &mut ret));
+        unsafe { mem::transmute(slice::from_raw_parts(ret, self.size() as usize)) }
+    }
 }
 
 /// Private
@@ -210,13 +216,20 @@ impl NDArray {
     }
 }
 
-// impl fmt::Display for NDArray {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         let _shape = self.shape();
+impl fmt::Display for NDArray {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let shape = self.shape();
+        let mut cpu_array = NDArray::builder().shape(&shape).create();
+        if self.context().device_type() != DeviceType::GPU {
+            cpu_array = self.clone();
+        } else {
+            self.wait_to_read();
+            self.copy_to(&mut cpu_array);
+        };
 
-//         write!(f, "NDArray")
-//     }
-// }
+        write!(f, "NDArray")
+    }
+}
 
 // impl std::ops::Add for NDArray {
 //     type Output = NDArray;
@@ -347,5 +360,7 @@ mod tests {
         let a2 = NDArray::builder().data(&[2.0]).create();
         a1 += a2;
         a1 += 0.5;
+        a1.wait_to_read();
+        println!("{:?}", a1.data());
     }
 }
