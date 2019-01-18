@@ -78,6 +78,10 @@ impl NDArray {
         }
     }
 
+    pub fn builder() -> NDArrayBuilder {
+        NDArrayBuilder::new()
+    }
+
     pub fn wait_to_read(&self) {
         check_call!(MXNDArrayWaitToRead(self.handle()));
     }
@@ -174,6 +178,19 @@ impl fmt::Display for NDArray {
     }
 }
 
+impl std::ops::Add for NDArray {
+    type Output = NDArray;
+
+    fn add(self, rhs: NDArray) -> NDArray {
+        let mut ret = NDArray::new();
+        Operator::new("_plus")
+            .push_input(&self)
+            .push_input(&rhs)
+            .invoke_with(&mut ret);
+        ret
+    }
+}
+
 pub struct NDArrayBuilder {
     data: Vec<f32>,
     shape: Vec<u32>,
@@ -262,5 +279,7 @@ mod tests {
             .create();
         let _a3 = NDArrayBuilder::new().shape(&[2, 3]).create();
         let _a4 = NDArrayBuilder::new().create();
+        let _a5 = NDArray::builder().data(&[2.1]).create();
+        let _a6 = _a1 + _a5;
     }
 }
