@@ -1,6 +1,6 @@
-use super::NDArray;
-use crate::base::{GetHandle, OP_MAP};
-use crate::symbol::Symbol;
+use super::base::{GetHandle, OP_MAP};
+use super::ndarray::NDArray;
+use super::symbol::Symbol;
 use mxnet_sys::{
     AtomicSymbolCreator, MXImperativeInvoke, MXSymbolCompose, MXSymbolCreateAtomicSymbol,
     MXSymbolGetAtomicSymbolInfo, NDArrayHandle,

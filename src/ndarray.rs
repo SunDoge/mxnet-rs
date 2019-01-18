@@ -1,13 +1,11 @@
-pub mod operator;
-
 use crate::base::GetHandle;
 use crate::context::{Context, DeviceType};
+use crate::operator::Operator;
 use mxnet_sys::{
     MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetContext, MXNDArrayGetDType,
     MXNDArrayGetData, MXNDArrayGetShape, MXNDArraySyncCopyFromCPU, MXNDArrayWaitToRead,
     MXNDArrayWaitToWrite, NDArrayHandle,
 };
-use operator::Operator;
 use std::ffi::c_void;
 use std::fmt;
 use std::mem;
