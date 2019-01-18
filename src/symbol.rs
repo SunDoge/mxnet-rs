@@ -1,3 +1,4 @@
+use crate::base::GetHandle;
 use mxnet_sys::{MXSymbolCreateVariable, MXSymbolFree, SymbolHandle};
 use std::ffi::{CStr, CString};
 use std::ptr;
@@ -37,5 +38,19 @@ impl Symbol {
         Symbol {
             blob: Rc::new(SymBlob::new(handle)),
         }
+    }
+}
+
+impl From<SymbolHandle> for Symbol {
+    fn from(handle: SymbolHandle) -> Symbol {
+        Symbol {
+            blob: Rc::new(SymBlob::new(handle)),
+        }
+    }
+}
+
+impl GetHandle for Symbol {
+    fn handle(&self) -> SymbolHandle {
+        self.blob.handle()
     }
 }

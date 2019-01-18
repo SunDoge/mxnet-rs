@@ -1,5 +1,6 @@
 pub mod operator;
 
+use crate::base::GetHandle;
 use crate::context::{Context, DeviceType};
 use mxnet_sys::{
     MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetContext, MXNDArrayGetDType,
@@ -11,6 +12,23 @@ use std::ffi::c_void;
 use std::fmt;
 use std::rc::Rc;
 use std::{ptr, slice};
+
+// macro_rules! ops {
+//     (
+//         $op_name:expr,
+//         $op_class:ident::$op_method:ident,
+//         $op_assign_class:ident::$op_assign_method:ident,
+//     ) => {
+//         impl std::ops::$op_class for NDArray {
+//             type Output = NDArray;
+
+//             fn $op_method(self, rhs: NDArray) -> NDArray {
+//                 let mut ret = NDArray::new();
+//                 Operator::new("_plus").push
+//             }
+//         }
+//     };
+// }
 
 // pub enum DType {
 //     None = -1,
@@ -74,6 +92,16 @@ impl NDArray {
             .invoke_with(&mut other);
         other
     }
+
+    // pub fn handle(&self) -> NDArrayHandle {
+    //     self.blob.handle()
+    // }
+}
+
+impl GetHandle for NDArray {
+    fn handle(&self) -> NDArrayHandle {
+        self.blob.handle()
+    }
 }
 
 impl From<NDArrayHandle> for NDArray {
@@ -103,10 +131,6 @@ impl NDArray {
     // Not sure if we realy want dtype.
     pub fn dtype(&self) -> i32 {
         self.raw_dtype()
-    }
-
-    pub fn handle(&self) -> NDArrayHandle {
-        self.blob.handle()
     }
 
     pub fn context(&self) -> Context {

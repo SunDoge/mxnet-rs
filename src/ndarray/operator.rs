@@ -1,110 +1,22 @@
-use crate::ndarray::NDArray;
+use super::NDArray;
+use crate::base::{GetHandle, OP_MAP};
+use crate::symbol::Symbol;
 use mxnet_sys::{
-    AtomicSymbolCreator, MXImperativeInvoke, MXSymbolGetAtomicSymbolInfo,
-    MXSymbolListAtomicSymbolCreators, NDArrayHandle, NNGetOpHandle, NNListAllOpNames, OpHandle,
-    SymbolHandle,
+    AtomicSymbolCreator, MXImperativeInvoke, MXSymbolCompose, MXSymbolCreateAtomicSymbol,
+    MXSymbolGetAtomicSymbolInfo, NDArrayHandle,
 };
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
+use std::ffi::{c_void, CStr, CString};
 use std::ptr;
 use std::slice;
-
-lazy_static! {
-    static ref OP_MAP: OpMap = OpMap::new();
-}
-
-pub struct OpMap {
-    symbol_creators: HashMap<String, AtomicSymbolCreator>,
-    op_handles: HashMap<String, OpHandle>,
-}
-
-unsafe impl Sync for OpMap {}
-
-impl OpMap {
-    pub fn new() -> OpMap {
-        let mut op_map = OpMap {
-            symbol_creators: HashMap::new(),
-            op_handles: HashMap::new(),
-        };
-
-        let mut num_symbol_creators = 0;
-        let mut symbol_creators = ptr::null_mut();
-        check_call!(MXSymbolListAtomicSymbolCreators(
-            &mut num_symbol_creators,
-            &mut symbol_creators
-        ));
-        // let num_symbol_creators = num_symbol_creators as usize;
-        let symbol_creators =
-            unsafe { slice::from_raw_parts(symbol_creators, num_symbol_creators as usize) };
-
-        // for i in 0..num_symbol_creators {
-        for symbol_creator in symbol_creators {
-            let mut name = ptr::null();
-            let mut description = ptr::null();
-            let mut num_args = 0;
-            let mut arg_names = ptr::null_mut();
-            let mut arg_descriptions = ptr::null_mut();
-            let mut arg_type_infos = ptr::null_mut();
-            let mut key_var_num_args = ptr::null();
-            let mut return_type = ptr::null();
-
-            check_call!(MXSymbolGetAtomicSymbolInfo(
-                // symbol_creators[i],
-                *symbol_creator,
-                &mut name,
-                &mut description,
-                &mut num_args,
-                &mut arg_names,
-                &mut arg_type_infos,
-                &mut arg_descriptions,
-                &mut key_var_num_args,
-                &mut return_type
-            ));
-
-            op_map.symbol_creators.insert(
-                unsafe { CStr::from_ptr(name) }.to_str().unwrap().to_owned(),
-                // symbol_creators[i],
-                *symbol_creator,
-            );
-        }
-
-        let mut num_ops = 0;
-        let mut op_names = ptr::null_mut();
-        check_call!(NNListAllOpNames(&mut num_ops, &mut op_names));
-        let op_names = unsafe { slice::from_raw_parts(op_names, num_ops as usize) };
-        for op_name in op_names {
-            let mut handle = ptr::null_mut();
-            check_call!(NNGetOpHandle(*op_name, &mut handle));
-            op_map.op_handles.insert(
-                unsafe { CStr::from_ptr(*op_name) }
-                    .to_str()
-                    .unwrap()
-                    .to_owned(),
-                handle,
-            );
-        }
-
-        op_map
-    }
-
-    pub fn get_symbol_creator(&self, name: &str) -> AtomicSymbolCreator {
-        *self
-            .symbol_creators
-            .get(name)
-            .unwrap_or(&self.get_op_handle(name))
-    }
-
-    pub fn get_op_handle(&self, name: &str) -> OpHandle {
-        self.op_handles[name]
-    }
-}
 
 pub struct Operator {
     params_desc: HashMap<String, String>,
     variable_params: bool,
     params: HashMap<String, String>,
-    input_symbols: Vec<SymbolHandle>,
-    input_ndarrays: Vec<NDArrayHandle>,
+    // input_symbols: Vec<SymbolHandle>,
+    // input_ndarrays: Vec<NDArrayHandle>,
+    inputs: Vec<*mut c_void>,
     input_keys: Vec<String>,
     arg_names: Vec<String>,
     handle: AtomicSymbolCreator,
@@ -151,22 +63,65 @@ impl Operator {
             params_desc: HashMap::new(),
             variable_params: false,
             params: HashMap::new(),
-            input_symbols: Vec::new(),
-            input_ndarrays: Vec::new(),
+            // input_symbols: Vec::new(),
+            // input_ndarrays: Vec::new(),
+            inputs: Vec::new(),
             input_keys: Vec::new(),
             arg_names,
             handle,
         }
     }
 
-    pub fn invoke(&mut self) -> Vec<NDArray> {
-        let mut output_handles = Vec::new();
-        self.invoke_with_handles(&mut output_handles);
-        let mut outputs = Vec::new();
-        for handle in &output_handles {
-            outputs.push(NDArray::from(*handle));
+    // pub fn set_input()
+
+    pub fn create_symbol(&mut self, name: &str) -> Symbol {
+        if self.input_keys.len() > 0 {
+            assert_eq!(self.input_keys.len(), self.inputs.len());
         }
-        outputs
+
+        let pname = if name.is_empty() {
+            ptr::null()
+        } else {
+            CString::new(name).unwrap().as_ptr()
+        };
+
+        let mut symbol_handle = ptr::null_mut();
+        let mut input_keys = Vec::new();
+        let mut param_keys = Vec::new();
+        let mut param_values = Vec::new();
+
+        for (key, value) in &self.params {
+            param_keys.push(CString::new(key.as_str()).unwrap().as_ptr());
+            param_values.push(CString::new(value.as_str()).unwrap().as_ptr());
+        }
+
+        for data in &self.input_keys {
+            input_keys.push(CString::new(data.as_str()).unwrap().as_ptr());
+        }
+
+        let input_keys_p = if input_keys.len() > 0 {
+            input_keys.as_mut_ptr()
+        } else {
+            ptr::null_mut()
+        };
+
+        check_call!(MXSymbolCreateAtomicSymbol(
+            self.handle,
+            param_keys.len() as u32,
+            param_keys.as_mut_ptr(),
+            param_values.as_mut_ptr(),
+            &mut symbol_handle
+        ));
+
+        check_call!(MXSymbolCompose(
+            symbol_handle,
+            pname,
+            self.inputs.len() as u32,
+            input_keys_p,
+            self.inputs.as_mut_ptr()
+        ));
+
+        Symbol::from(symbol_handle)
     }
 
     pub fn invoke_with(&mut self, output: &mut NDArray) {
@@ -176,7 +131,7 @@ impl Operator {
 
     pub fn invoke_with_handles(&mut self, output_handles: &mut Vec<NDArrayHandle>) {
         if self.input_keys.len() > 0 {
-            assert_eq!(self.input_keys.len(), self.input_ndarrays.len());
+            assert_eq!(self.input_keys.len(), self.inputs.len());
         }
 
         let mut param_keys = Vec::new();
@@ -187,7 +142,7 @@ impl Operator {
             param_values.push(CString::new(value.as_str()).unwrap().as_ptr());
         }
 
-        let num_inputs = self.input_ndarrays.len() as i32;
+        let num_inputs = self.inputs.len() as i32;
 
         let mut num_outputs = output_handles.len() as i32;
 
@@ -200,7 +155,7 @@ impl Operator {
         check_call!(MXImperativeInvoke(
             self.handle,
             num_inputs,
-            self.input_ndarrays.as_mut_ptr(),
+            self.inputs.as_mut_ptr(),
             &mut num_outputs,
             &mut outputs_receiver,
             param_keys.len() as i32,
@@ -218,14 +173,30 @@ impl Operator {
         }
     }
 
-    pub fn push_input(&mut self, ndarray: &NDArray) -> &mut Self {
-        self.input_ndarrays.push(ndarray.handle());
+    pub fn push_input(&mut self, value: &impl GetHandle) -> &mut Self {
+        self.inputs.push(value.handle());
         self
     }
 
-    pub fn set_input(&mut self, name: &str, ndarray: &NDArray) -> &mut Self {
+    pub fn set_input(&mut self, name: &str, value: &impl GetHandle) -> &mut Self {
         self.input_keys.push(name.to_owned());
-        self.input_ndarrays.push(ndarray.handle());
+        self.inputs.push(value.handle());
+        self
+    }
+
+    pub fn invoke(&mut self) -> Vec<NDArray> {
+        let mut output_handles = Vec::new();
+        self.invoke_with_handles(&mut output_handles);
+        let mut outputs = Vec::new();
+        for handle in &output_handles {
+            outputs.push(NDArray::from(*handle));
+        }
+        outputs
+    }
+
+    pub fn set_param(&mut self, name: &str, value: &impl ToString) -> &mut Self {
+        let value_str = value.to_string();
+        self.params.insert(name.to_owned(), value_str);
         self
     }
 }
@@ -234,12 +205,6 @@ impl Operator {
 mod tests {
     use super::*;
     use crate::ndarray;
-
-    #[test]
-    fn create_op_map() {
-        let op_map = OpMap::new();
-        let _add = op_map.get_op_handle("_plus");
-    }
 
     #[test]
     fn create_operator() {
