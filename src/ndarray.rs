@@ -3,8 +3,8 @@ use crate::context::{Context, DeviceType};
 use crate::operator::Operator;
 use mxnet_sys::{
     MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetContext, MXNDArrayGetDType,
-    MXNDArrayGetData, MXNDArrayGetShape, MXNDArraySyncCopyFromCPU, MXNDArrayWaitToRead,
-    MXNDArrayWaitToWrite, NDArrayHandle,
+    MXNDArrayGetData, MXNDArrayGetShape, MXNDArraySyncCopyFromCPU, MXNDArrayWaitAll,
+    MXNDArrayWaitToRead, MXNDArrayWaitToWrite, NDArrayHandle,
 };
 use std::ffi::c_void;
 use std::fmt;
@@ -133,6 +133,10 @@ impl NDArray {
     pub fn copy_to<'a>(&self, other: &'a mut NDArray) -> &'a mut NDArray {
         Operator::new("copyto").push_input(self).invoke_with(other);
         other
+    }
+
+    pub fn waitall(&self) {
+        check_call!(MXNDArrayWaitAll());
     }
 
     // pub fn handle(&self) -> NDArrayHandle {
