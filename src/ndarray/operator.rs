@@ -10,10 +10,13 @@ use std::ffi::{c_void, CStr, CString};
 use std::ptr;
 use std::slice;
 
+#[derive(Debug)]
 pub struct Operator {
     // params_desc: HashMap<String, String>,
     // variable_params: bool,
-    params: HashMap<String, String>,
+
+    // Params has to store CString, or a memory error arise.
+    params: HashMap<CString, CString>,
     // input_symbols: Vec<SymbolHandle>,
     // input_ndarrays: Vec<NDArrayHandle>,
     inputs: Vec<*mut c_void>,
@@ -91,8 +94,8 @@ impl Operator {
         let mut param_values = Vec::new();
 
         for (key, value) in &self.params {
-            param_keys.push(CString::new(key.as_str()).unwrap().as_ptr());
-            param_values.push(CString::new(value.as_str()).unwrap().as_ptr());
+            param_keys.push(key.as_ptr());
+            param_values.push(value.as_ptr());
         }
 
         for data in &self.input_keys {
@@ -138,9 +141,11 @@ impl Operator {
         let mut param_values = Vec::new();
 
         for (key, value) in &self.params {
-            param_keys.push(CString::new(key.as_str()).unwrap().as_ptr());
-            param_values.push(CString::new(value.as_str()).unwrap().as_ptr());
+            param_keys.push(key.as_ptr());
+            param_values.push(value.as_ptr());
         }
+
+        // println!("{:?}", self.params);
 
         let num_inputs = self.inputs.len() as i32;
 
@@ -151,6 +156,8 @@ impl Operator {
         } else {
             ptr::null_mut()
         };
+
+        println!("Before call");
 
         check_call!(MXImperativeInvoke(
             self.handle,
@@ -163,7 +170,10 @@ impl Operator {
             param_values.as_mut_ptr(),
         ));
 
+        println!("After call");
+
         if output_handles.len() > 0 {
+            println!("return if has output handles");
             return;
         }
 
@@ -196,7 +206,11 @@ impl Operator {
 
     pub fn set_param(&mut self, name: &str, value: &impl ToString) -> &mut Self {
         let value_str = value.to_string();
-        self.params.insert(name.to_owned(), value_str);
+        println!("{}:{}", name, &value_str);
+        self.params.insert(
+            CString::new(name).unwrap(),
+            CString::new(value_str).unwrap(),
+        );
         self
     }
 
@@ -211,16 +225,30 @@ impl Operator {
 mod tests {
     use super::*;
     use crate::ndarray;
+    use crate::symbol;
 
     #[test]
     fn create_operator() {
         let a1 = ndarray::NDArrayBuilder::new().data(&[1.0]).create();
         let a2 = ndarray::NDArrayBuilder::new().data(&[1.0]).create();
         let mut a3 = ndarray::NDArray::new();
-        Operator::new("_plus")
+        // Operator::new("_plus")
+        //     .push_input(&a1)
+        //     .push_input(&a2)
+        //     .invoke_with(&mut a3);
+
+        // let s1 = symbol::Symbol::new("data");
+        // let op = Operator::new("_PlusScalar")
+        //     .push_input(&s1)
+        //     .set_param("scalar", &1.0)
+        //     .create_symbol("");
+
+        let op = Operator::new("_plus_scalar")
             .push_input(&a1)
-            .push_input(&a2)
+            .set_param_at(1, &0.1)
             .invoke_with(&mut a3);
+        // println!("{:?}", op);
+        // println!("{:?}", op.params);
 
         println!("{:?}", a3.size());
     }

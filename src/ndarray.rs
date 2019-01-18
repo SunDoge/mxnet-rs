@@ -13,23 +13,57 @@ use std::fmt;
 use std::rc::Rc;
 use std::{ptr, slice};
 
-// macro_rules! ops {
-//     (
-//         $op_name:expr,
-//         $op_class:ident::$op_method:ident,
-//         $op_assign_class:ident::$op_assign_method:ident,
-//     ) => {
-//         impl std::ops::$op_class for NDArray {
-//             type Output = NDArray;
+macro_rules! ops {
+    (
+        $op_name:expr,
+        $op_class:ident::$op_method:ident,
+        $op_assign_class:ident::$op_assign_method:ident
+    ) => {
+        impl std::ops::$op_class for NDArray {
+            type Output = NDArray;
 
-//             fn $op_method(self, rhs: NDArray) -> NDArray {
-//                 let mut ret = NDArray::new();
-//                 Operator::new("_plus").push
-//             }
-//         }
-//     };
-// }
+            fn $op_method(self, rhs: NDArray) -> NDArray {
+                let mut ret = NDArray::new();
+                Operator::new($op_name)
+                    .push_input(&self)
+                    .push_input(&rhs)
+                    .invoke_with(&mut ret);
+                ret
+            }
+        }
 
+        impl std::ops::$op_class<f32> for NDArray {
+            type Output = NDArray;
+
+            fn $op_method(self, scalar: f32) -> NDArray {
+                let mut ret = NDArray::new();
+                Operator::new(concat!($op_name, "_scalar"))
+                    .push_input(&self)
+                    .set_param("scalar", &scalar)
+                    .invoke_with(&mut ret);
+                ret
+            }
+        }
+
+        impl std::ops::$op_assign_class for NDArray {
+            fn $op_assign_method(&mut self, rhs: NDArray) {
+                Operator::new($op_name)
+                    .push_input(self)
+                    .push_input(&rhs)
+                    .invoke_with(self);
+            }
+        }
+
+        impl std::ops::$op_assign_class<f32> for NDArray {
+            fn $op_assign_method(&mut self, rhs: f32) {
+                Operator::new(concat!($op_name, "_scalar"))
+                    .push_input(self)
+                    .set_param("scalar", &rhs)
+                    .invoke_with(self);
+            }
+        }
+    };
+}
 // pub enum DType {
 //     None = -1,
 //     F32 = 0,
@@ -68,6 +102,12 @@ impl Drop for NDBlob {
 pub struct NDArray {
     blob: Rc<NDBlob>,
 }
+
+ops!("_plus", Add::add, AddAssign::add_assign);
+ops!("_minus", Sub::sub, SubAssign::sub_assign);
+ops!("_mul", Mul::mul, MulAssign::mul_assign);
+ops!("_div", Div::div, DivAssign::div_assign);
+ops!("_mod", Rem::rem, RemAssign::rem_assign);
 
 impl NDArray {
     pub fn new() -> NDArray {
@@ -170,26 +210,57 @@ impl NDArray {
     }
 }
 
-impl fmt::Display for NDArray {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let _shape = self.shape();
+// impl fmt::Display for NDArray {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         let _shape = self.shape();
 
-        write!(f, "NDArray")
-    }
-}
+//         write!(f, "NDArray")
+//     }
+// }
 
-impl std::ops::Add for NDArray {
-    type Output = NDArray;
+// impl std::ops::Add for NDArray {
+//     type Output = NDArray;
 
-    fn add(self, rhs: NDArray) -> NDArray {
-        let mut ret = NDArray::new();
-        Operator::new("_plus")
-            .push_input(&self)
-            .push_input(&rhs)
-            .invoke_with(&mut ret);
-        ret
-    }
-}
+//     fn add(self, rhs: NDArray) -> NDArray {
+//         let mut ret = NDArray::new();
+//         Operator::new("_plus")
+//             .push_input(&self)
+//             .push_input(&rhs)
+//             .invoke_with(&mut ret);
+//         ret
+//     }
+// }
+
+// impl std::ops::Add<f32> for NDArray {
+//     type Output = NDArray;
+
+//     fn add(self, rhs: f32) -> NDArray {
+//         let mut ret = NDArray::new();
+//         Operator::new("_plus_scalar")
+//             .push_input(&self)
+//             .set_param_at(1, &rhs)
+//             .invoke_with(&mut ret);
+//         ret
+//     }
+// }
+
+// impl std::ops::AddAssign for NDArray {
+//     fn add_assign(&mut self, rhs: NDArray) {
+//         Operator::new("_plus")
+//             .push_input(self)
+//             .push_input(&rhs)
+//             .invoke_with(self);
+//     }
+// }
+
+// impl std::ops::AddAssign<f32> for NDArray {
+//     fn add_assign(&mut self, rhs: f32) {
+//         Operator::new("_plus_scalar")
+//             .push_input(self)
+//             .set_param("scalar", &rhs)
+//             .invoke_with(self);
+//     }
+// }
 
 pub struct NDArrayBuilder {
     data: Vec<f32>,
@@ -272,14 +343,9 @@ mod tests {
 
     #[test]
     fn ndarray_builder() {
-        let _a1 = NDArrayBuilder::new().data(&[1.0]).create();
-        let _a2 = NDArrayBuilder::new()
-            .data(&[1.0, 2.0])
-            .shape(&[2, 1])
-            .create();
-        let _a3 = NDArrayBuilder::new().shape(&[2, 3]).create();
-        let _a4 = NDArrayBuilder::new().create();
-        let _a5 = NDArray::builder().data(&[2.1]).create();
-        let _a6 = _a1 + _a5;
+        let mut a1 = NDArrayBuilder::new().data(&[1.0]).create();
+        let a2 = NDArray::builder().data(&[2.0]).create();
+        a1 += a2;
+        a1 += 0.5;
     }
 }
