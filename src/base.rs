@@ -117,7 +117,6 @@ impl OpMap {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

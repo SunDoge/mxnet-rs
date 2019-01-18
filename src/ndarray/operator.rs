@@ -11,8 +11,8 @@ use std::ptr;
 use std::slice;
 
 pub struct Operator {
-    params_desc: HashMap<String, String>,
-    variable_params: bool,
+    // params_desc: HashMap<String, String>,
+    // variable_params: bool,
     params: HashMap<String, String>,
     // input_symbols: Vec<SymbolHandle>,
     // input_ndarrays: Vec<NDArrayHandle>,
@@ -60,8 +60,8 @@ impl Operator {
             .collect();
 
         Operator {
-            params_desc: HashMap::new(),
-            variable_params: false,
+            // params_desc: HashMap::new(),
+            // variable_params: false,
             params: HashMap::new(),
             // input_symbols: Vec::new(),
             // input_ndarrays: Vec::new(),
@@ -197,6 +197,12 @@ impl Operator {
     pub fn set_param(&mut self, name: &str, value: &impl ToString) -> &mut Self {
         let value_str = value.to_string();
         self.params.insert(name.to_owned(), value_str);
+        self
+    }
+
+    // It seems never used.
+    pub fn set_param_at(&mut self, pos: usize, value: &impl ToString) -> &mut Self {
+        self.set_param(&self.arg_names[pos].clone(), value);
         self
     }
 }
