@@ -4,6 +4,7 @@ extern crate lazy_static;
 #[macro_use]
 pub mod base;
 
+pub mod autograd;
 pub mod context;
 pub mod error;
 pub mod ndarray;

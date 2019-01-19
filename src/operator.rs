@@ -157,7 +157,7 @@ impl Operator {
             ptr::null_mut()
         };
 
-        println!("Before call");
+        // println!("Before call");
 
         check_call!(MXImperativeInvoke(
             self.handle,
@@ -170,10 +170,10 @@ impl Operator {
             param_values.as_mut_ptr(),
         ));
 
-        println!("After call");
+        // println!("After call");
 
         if output_handles.len() > 0 {
-            println!("return if has output handles");
+            // println!("return if has output handles");
             return;
         }
 
@@ -206,7 +206,7 @@ impl Operator {
 
     pub fn set_param(&mut self, name: &str, value: &impl ToString) -> &mut Self {
         let value_str = value.to_string();
-        println!("{}:{}", name, &value_str);
+        // println!("{}:{}", name, &value_str);
         self.params.insert(
             CString::new(name).unwrap(),
             CString::new(value_str).unwrap(),

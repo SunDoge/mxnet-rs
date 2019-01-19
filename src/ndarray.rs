@@ -392,7 +392,6 @@ mod tests {
         a1 += a2;
         a1 += 0.5;
         a1.wait_to_read();
-        println!("{:?}", a1.data());
         println!("{}", a1);
     }
 }
