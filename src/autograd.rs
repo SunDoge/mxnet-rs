@@ -69,8 +69,24 @@ fn is_training() -> bool {
     curr
 }
 
+/// Returns an autograd recording scope context to be used in 'with' statement
+/// and captures code that needs gradients to be calculated.
 pub fn record() -> RecordingStateScope {
     RecordingStateScope::new(Some(true), Some(true))
+}
+
+/// Returns a scope context to be used in 'with' statement for codes that do not need
+/// gradients to be calculated.
+pub fn pause() -> RecordingStateScope {
+    RecordingStateScope::new(Some(false), Some(false))
+}
+
+pub fn train_mode() -> RecordingStateScope {
+    RecordingStateScope::new(None, Some(true))
+}
+
+pub fn predict_mode() -> RecordingStateScope {
+    RecordingStateScope::new(None, Some(false))
 }
 
 #[cfg(test)]
