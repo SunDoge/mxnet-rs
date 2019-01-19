@@ -6,6 +6,7 @@ use mxnet_sys::{
     MXNDArrayGetData, MXNDArrayGetShape, MXNDArraySyncCopyFromCPU, MXNDArrayWaitAll,
     MXNDArrayWaitToRead, MXNDArrayWaitToWrite, NDArrayHandle,
 };
+use ndarray::{ArrayView, Dim, ShapeBuilder};
 use std::ffi::c_void;
 use std::fmt;
 use std::mem;
@@ -135,7 +136,7 @@ impl NDArray {
         other
     }
 
-    pub fn waitall(&self) {
+    pub fn wait_all(&self) {
         check_call!(MXNDArrayWaitAll());
     }
 
@@ -229,7 +230,20 @@ impl fmt::Display for NDArray {
             self.copy_to(&mut cpu_array);
         };
 
-        write!(f, "NDArray")
+        write!(
+            f,
+            "{}\ndtype={}",
+            ArrayView::from_shape(
+                Dim(cpu_array
+                    .shape()
+                    .into_iter()
+                    .map(|s| s as usize)
+                    .collect::<Vec<usize>>()),
+                cpu_array.data()
+            )
+            .unwrap(),
+            cpu_array.dtype()
+        )
     }
 }
 
@@ -358,11 +372,15 @@ mod tests {
 
     #[test]
     fn ndarray_builder() {
-        let mut a1 = NDArrayBuilder::new().data(&[1.0]).create();
-        let a2 = NDArray::builder().data(&[2.0]).create();
+        let mut a1 = NDArrayBuilder::new()
+            .data(&[1.0, 2.0])
+            .shape(&[2, 1])
+            .create();
+        let a2 = NDArray::builder().data(&[2.0, 3.0]).shape(&[2, 1]).create();
         a1 += a2;
         a1 += 0.5;
         a1.wait_to_read();
         println!("{:?}", a1.data());
+        println!("{}", a1);
     }
 }
