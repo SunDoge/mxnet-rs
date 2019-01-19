@@ -3,16 +3,18 @@ use crate::context::{Context, DeviceType};
 use crate::operator::Operator;
 use mxnet_sys::{
     MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetContext, MXNDArrayGetDType,
-    MXNDArrayGetData, MXNDArrayGetShape, MXNDArraySyncCopyFromCPU, MXNDArrayWaitAll,
-    MXNDArrayWaitToRead, MXNDArrayWaitToWrite, NDArrayHandle,
+    MXNDArrayGetData, MXNDArrayGetShape, MXNDArraySlice, MXNDArraySyncCopyFromCPU,
+    MXNDArrayWaitAll, MXNDArrayWaitToRead, MXNDArrayWaitToWrite, NDArrayHandle,
 };
 use ndarray::{ArrayView, Dim, ShapeBuilder};
 use std::ffi::c_void;
 use std::fmt;
 use std::mem;
+use std::ops;
 use std::rc::Rc;
 use std::{ptr, slice};
 
+// Implement add, sub, mul, div, mod for NDAarry and f32.
 macro_rules! ops {
     (
         $op_name:expr,
@@ -140,9 +142,19 @@ impl NDArray {
         check_call!(MXNDArrayWaitAll());
     }
 
-    // pub fn handle(&self) -> NDArrayHandle {
-    //     self.blob.handle()
-    // }
+    pub fn argmax_channel(&self) -> NDArray {
+        let mut ret = NDArray::new();
+        Operator::new("argmax_channel")
+            .push_input(self)
+            .invoke_with(&mut ret);
+        ret
+    }
+
+    pub fn slice(&self, begin: u32, end: u32) -> NDArray {
+        let mut handle = ptr::null_mut();
+        check_call!(MXNDArraySlice(self.handle(), begin, end, &mut handle));
+        NDArray::from(handle)
+    }
 }
 
 impl GetHandle for NDArray {
