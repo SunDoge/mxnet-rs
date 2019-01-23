@@ -101,8 +101,10 @@ mod tests {
             let _ = record();
 
             x += 1.0;
+            
         }
 
         println!("{}", x);
+        
     }
 }

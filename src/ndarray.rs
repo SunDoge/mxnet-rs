@@ -1,10 +1,12 @@
-use crate::base::GetHandle;
+pub mod register;
+
 use crate::context::{Context, DeviceType};
-use crate::operator::Operator;
+use crate::operator::{Operator, GetHandle};
 use mxnet_sys::{
     MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetContext, MXNDArrayGetDType,
-    MXNDArrayGetData, MXNDArrayGetShape, MXNDArraySlice, MXNDArraySyncCopyFromCPU,
-    MXNDArrayWaitAll, MXNDArrayWaitToRead, MXNDArrayWaitToWrite, NDArrayHandle,
+    MXNDArrayGetData, MXNDArrayGetGrad, MXNDArrayGetShape, MXNDArraySlice,
+    MXNDArraySyncCopyFromCPU, MXNDArrayWaitAll, MXNDArrayWaitToRead, MXNDArrayWaitToWrite,
+    NDArrayHandle,
 };
 use ndarray::{ArrayView, Dim, ShapeBuilder};
 use std::ffi::c_void;
@@ -13,6 +15,7 @@ use std::mem;
 use std::ops;
 use std::rc::Rc;
 use std::{ptr, slice};
+
 
 // Implement add, sub, mul, div, mod for NDAarry and f32.
 macro_rules! ops {
@@ -155,6 +158,10 @@ impl NDArray {
         check_call!(MXNDArraySlice(self.handle(), begin, end, &mut handle));
         NDArray::from(handle)
     }
+
+    pub fn attach_grad(&self) {}
+
+    pub fn attach_grad_with(&self, grad_req: &str, stype: Option<&str>) {}
 }
 
 impl GetHandle for NDArray {
@@ -207,6 +214,12 @@ impl NDArray {
         let mut ret = ptr::null_mut();
         check_call!(MXNDArrayGetData(self.handle(), &mut ret));
         unsafe { mem::transmute(slice::from_raw_parts(ret, self.size() as usize)) }
+    }
+
+    pub fn grad(&self) -> NDArray {
+        let mut handle = ptr::null_mut();
+        check_call!(MXNDArrayGetGrad(self.handle(), &mut handle));
+        NDArray::from(handle)
     }
 }
 
@@ -370,6 +383,8 @@ impl NDArrayBuilder {
 }
 
 pub fn ones() {}
+
+pub fn zeros_like() {}
 
 #[cfg(test)]
 mod tests {

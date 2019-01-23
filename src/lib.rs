@@ -8,6 +8,7 @@ pub mod autograd;
 pub mod context;
 pub mod error;
 pub mod ndarray;
+pub mod op_map;
 pub mod operator;
 pub mod symbol;
 

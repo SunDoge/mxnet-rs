@@ -8,3 +8,6 @@ edition = "2018"
 mxnet-sys = { git="https://github.com/SunDoge/mxnet-sys" }
 lazy_static = "1.2"
 ndarray = "0.12"
+
+[dev-dependencies]
+codegen = "0.1"

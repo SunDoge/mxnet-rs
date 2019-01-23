@@ -1,5 +1,5 @@
-use super::base::{GetHandle, OP_MAP};
 use super::ndarray::NDArray;
+use super::op_map::OP_MAP;
 use super::symbol::Symbol;
 use mxnet_sys::{
     AtomicSymbolCreator, MXImperativeInvoke, MXSymbolCompose, MXSymbolCreateAtomicSymbol,
@@ -10,6 +10,10 @@ use std::ffi::{c_void, CStr, CString};
 use std::ptr;
 use std::slice;
 
+pub trait GetHandle {
+    fn handle(&self) -> *mut c_void;
+}
+
 #[derive(Debug)]
 pub struct Operator {
     // params_desc: HashMap<String, String>,
@@ -17,11 +21,13 @@ pub struct Operator {
 
     // Params has to store CString, or a memory error arise.
     params: HashMap<CString, CString>,
+    // Param index
+    index: usize,
     // input_symbols: Vec<SymbolHandle>,
     // input_ndarrays: Vec<NDArrayHandle>,
     inputs: Vec<*mut c_void>,
-    input_keys: Vec<String>,
-    arg_names: Vec<String>,
+    input_keys: Vec<CString>,
+    arg_names: Vec<CString>,
     handle: AtomicSymbolCreator,
 }
 
@@ -54,18 +60,14 @@ impl Operator {
 
         let arg_names = unsafe { slice::from_raw_parts(arg_names, num_args as usize) }
             .iter()
-            .map(|name| {
-                unsafe { CStr::from_ptr(*name) }
-                    .to_str()
-                    .unwrap()
-                    .to_owned()
-            })
+            .map(|name| unsafe { CStr::from_ptr(*name).to_owned() })
             .collect();
 
         Operator {
             // params_desc: HashMap::new(),
             // variable_params: false,
             params: HashMap::new(),
+            index: 0,
             // input_symbols: Vec::new(),
             // input_ndarrays: Vec::new(),
             inputs: Vec::new(),
@@ -99,7 +101,7 @@ impl Operator {
         }
 
         for data in &self.input_keys {
-            input_keys.push(CString::new(data.as_str()).unwrap().as_ptr());
+            input_keys.push(data.as_ptr());
         }
 
         let input_keys_p = if input_keys.len() > 0 {
@@ -185,12 +187,14 @@ impl Operator {
 
     pub fn push_input(&mut self, value: &impl GetHandle) -> &mut Self {
         self.inputs.push(value.handle());
+        self.index += 1;
         self
     }
 
     pub fn set_input(&mut self, name: &str, value: &impl GetHandle) -> &mut Self {
-        self.input_keys.push(name.to_owned());
+        self.input_keys.push(CString::new(name).unwrap());
         self.inputs.push(value.handle());
+        self.index += 1;
         self
     }
 
@@ -216,8 +220,16 @@ impl Operator {
 
     // It seems never used.
     pub fn set_param_at(&mut self, pos: usize, value: &impl ToString) -> &mut Self {
-        self.set_param(&self.arg_names[pos].clone(), value);
+        let value_str = value.to_string();
+        self.params.insert(
+            self.arg_names[pos].clone(),
+            CString::new(value_str).unwrap(),
+        );
         self
+    }
+
+    pub fn push_param(&mut self, value: &impl ToString) -> &mut Self {
+        self.set_param_at(self.index, value)
     }
 }
 
