@@ -1,10 +1,11 @@
 use super::ndarray::NDArray;
 use super::op_map::OP_MAP;
 use super::symbol::Symbol;
-use mxnet_sys::{
-    AtomicSymbolCreator, MXImperativeInvoke, MXSymbolCompose, MXSymbolCreateAtomicSymbol,
-    MXSymbolGetAtomicSymbolInfo, NDArrayHandle,
-};
+// use mxnet_sys::{
+//     AtomicSymbolCreator, MXImperativeInvoke, MXSymbolCompose, MXSymbolCreateAtomicSymbol,
+//     MXSymbolGetAtomicSymbolInfo, NDArrayHandle,
+// };
+use mxnet_sys::*;
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr, CString};
 use std::ptr;

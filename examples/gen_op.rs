@@ -34,6 +34,5 @@ fn main() {
     for name in op_names {
         let mut hdl = ptr::null_mut();
         check_call!(NNGetOpHandle(name.as_ptr(), &mut hdl));
-        
     }
 }

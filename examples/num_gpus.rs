@@ -17,5 +17,4 @@ fn main() {
     //         println!("{:?}", std::ffi::CStr::from_ptr(*p));
     //     }
     // }
-    
 }

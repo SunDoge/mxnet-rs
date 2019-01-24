@@ -23,13 +23,8 @@ macro_rules! check_call {
     };
 }
 
-
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
 }

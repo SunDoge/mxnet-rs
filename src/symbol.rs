@@ -1,4 +1,4 @@
-use crate::operator::{Operator, GetHandle};
+use crate::operator::{GetHandle, Operator};
 use mxnet_sys::{MXSymbolCreateVariable, MXSymbolFree, SymbolHandle};
 use std::ffi::{CStr, CString};
 use std::ptr;

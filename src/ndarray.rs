@@ -1,13 +1,14 @@
 pub mod register;
 
 use crate::context::{Context, DeviceType};
-use crate::operator::{Operator, GetHandle};
-use mxnet_sys::{
-    MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetContext, MXNDArrayGetDType,
-    MXNDArrayGetData, MXNDArrayGetGrad, MXNDArrayGetShape, MXNDArraySlice,
-    MXNDArraySyncCopyFromCPU, MXNDArrayWaitAll, MXNDArrayWaitToRead, MXNDArrayWaitToWrite,
-    NDArrayHandle,
-};
+use crate::operator::{GetHandle, Operator};
+// use mxnet_sys::{
+//     MXNDArrayCreate, MXNDArrayCreateNone, MXNDArrayFree, MXNDArrayGetContext, MXNDArrayGetDType,
+//     MXNDArrayGetData, MXNDArrayGetGrad, MXNDArrayGetShape, MXNDArrayGetStorageType, MXNDArraySlice,
+//     MXNDArraySyncCopyFromCPU, MXNDArrayWaitAll, MXNDArrayWaitToRead, MXNDArrayWaitToWrite,
+//     NDArrayHandle,
+// };
+use mxnet_sys::*;
 use ndarray::{ArrayView, Dim, ShapeBuilder};
 use std::ffi::c_void;
 use std::fmt;
@@ -15,7 +16,6 @@ use std::mem;
 use std::ops;
 use std::rc::Rc;
 use std::{ptr, slice};
-
 
 // Implement add, sub, mul, div, mod for NDAarry and f32.
 macro_rules! ops {
@@ -44,7 +44,8 @@ macro_rules! ops {
                 let mut ret = NDArray::new();
                 Operator::new(concat!($op_name, "_scalar"))
                     .push_input(&self)
-                    .set_param("scalar", &scalar)
+                    // .set_param("scalar", &scalar)
+                    .push_param(&scalar)
                     .invoke_with(&mut ret);
                 ret
             }
@@ -60,10 +61,11 @@ macro_rules! ops {
         }
 
         impl std::ops::$op_assign_class<f32> for NDArray {
-            fn $op_assign_method(&mut self, rhs: f32) {
+            fn $op_assign_method(&mut self, scalar: f32) {
                 Operator::new(concat!($op_name, "_scalar"))
                     .push_input(self)
-                    .set_param("scalar", &rhs)
+                    // .set_param("scalar", &rhs)
+                    .push_param(&scalar)
                     .invoke_with(self);
             }
         }
@@ -78,6 +80,38 @@ macro_rules! ops {
 //     I32 = 4,
 //     I8 = 5,
 //     I64 = 6,
+// }
+
+#[derive(Debug)]
+pub enum StorageType {
+    Undefined = -1,
+    Default = 0,
+    RowSparse = 1,
+    CSR = 2,
+}
+
+impl From<i32> for StorageType {
+    fn from(int: i32) -> StorageType {
+        match int {
+            -1 => StorageType::Undefined,
+            0 => StorageType::Default,
+            1 => StorageType::RowSparse,
+            2 => StorageType::CSR,
+            _ => unreachable!(),
+        }
+    }
+}
+
+// impl From<&str> for StorageType {
+//     fn from(s: &str) -> StorageType {
+//         match s {
+//             "undefined" => StorageType::Undefined,
+//             "default" => StorageType::Default,
+//             "row_sparse" => StorageType::RowSparse,
+//             "csr" => StorageType::CSR,
+//             _ => unreachable!(),
+//         }
+//     }
 // }
 
 struct NDBlob {
@@ -107,6 +141,7 @@ impl Drop for NDBlob {
 #[derive(Clone)]
 pub struct NDArray {
     blob: Rc<NDBlob>,
+    writable: bool,
 }
 
 ops!("_plus", Add::add, AddAssign::add_assign);
@@ -121,6 +156,7 @@ impl NDArray {
         check_call!(MXNDArrayCreateNone(&mut handle));
         NDArray {
             blob: Rc::new(NDBlob::new(handle)),
+            writable: true,
         }
     }
 
@@ -162,6 +198,11 @@ impl NDArray {
     pub fn attach_grad(&self) {}
 
     pub fn attach_grad_with(&self, grad_req: &str, stype: Option<&str>) {}
+
+    pub fn set_writable(&mut self, writable: bool) -> &mut Self {
+        self.writable = writable;
+        self
+    }
 }
 
 impl GetHandle for NDArray {
@@ -174,6 +215,7 @@ impl From<NDArrayHandle> for NDArray {
     fn from(handle: NDArrayHandle) -> NDArray {
         NDArray {
             blob: Rc::new(NDBlob::new(handle)),
+            writable: true,
         }
     }
 }
@@ -221,6 +263,10 @@ impl NDArray {
         check_call!(MXNDArrayGetGrad(self.handle(), &mut handle));
         NDArray::from(handle)
     }
+
+    pub fn stype(&self) -> StorageType {
+        StorageType::from(self.storage_type())
+    }
 }
 
 /// Private
@@ -241,6 +287,12 @@ impl NDArray {
         let mut mx_dtype = 0;
         check_call!(MXNDArrayGetDType(self.handle(), &mut mx_dtype));
         mx_dtype
+    }
+
+    fn storage_type(&self) -> i32 {
+        let mut storage_type = 0;
+        check_call!(MXNDArrayGetStorageType(self.handle(), &mut storage_type));
+        storage_type
     }
 }
 
@@ -321,6 +373,7 @@ pub struct NDArrayBuilder {
     shape: Vec<u32>,
     context: Context,
     delay_alloc: bool,
+    writable: bool,
 }
 
 impl NDArrayBuilder {
@@ -330,6 +383,7 @@ impl NDArrayBuilder {
             shape: Vec::new(),
             context: Default::default(),
             delay_alloc: true,
+            writable: true,
         }
     }
 
@@ -352,6 +406,11 @@ impl NDArrayBuilder {
 
     pub fn delay_alloc(&mut self, delay_alloc: bool) -> &mut Self {
         self.delay_alloc = delay_alloc;
+        self
+    }
+
+    pub fn writable(&mut self, writable: bool) -> &mut Self {
+        self.writable = writable;
         self
     }
 
@@ -378,6 +437,7 @@ impl NDArrayBuilder {
 
         NDArray {
             blob: Rc::new(NDBlob::new(handle)),
+            writable: self.writable,
         }
     }
 }
@@ -408,5 +468,6 @@ mod tests {
         a1 += 0.5;
         a1.wait_to_read();
         println!("{}", a1);
+        println!("{:?}", a1.stype());
     }
 }
