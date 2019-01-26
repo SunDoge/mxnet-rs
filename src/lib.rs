@@ -1,8 +1,11 @@
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate enum_str_derive;
 
 #[macro_use]
 pub mod base;
+
 
 pub mod autograd;
 pub mod context;
