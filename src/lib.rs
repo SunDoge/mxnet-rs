@@ -1,8 +1,6 @@
 #![feature(test)]
 
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate enum_str_derive;
 
 #[macro_use]
@@ -23,12 +21,6 @@ mod tests {
     use super::*;
     use test::Bencher;
 
-    struct Map {
-        pub map: std::collections::HashMap<std::ffi::CString, *mut std::ffi::c_void>
-    }
-    unsafe impl Send for Map {}
-    unsafe impl Sync for Map {}
-
     #[test]
     fn it_works() {
         assert_eq!(2 + 2, 4);
@@ -42,9 +34,6 @@ mod tests {
         let mut map = std::collections::HashMap::new();
         map.insert(op_name.clone(), handle);
         b.iter(|| {
-            // let mut hdl = std::ptr::null_mut();
-            // check_call!(mxnet_sys::NNGetOpHandle(op_name.as_ptr(), &mut hdl));
-
             let hdl = map.get(&op_name).unwrap();
             assert_eq!(*hdl, handle);
         });

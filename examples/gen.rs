@@ -3,15 +3,4 @@ pub const OP_NAME_PREFIX_LIST: &[&'static str; 5] =
 
 use codegen::Scope;
 
-fn main() {
-
-
-
-
-
-
-
-
-
-    
-}
+fn main() {}

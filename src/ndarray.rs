@@ -13,7 +13,6 @@ use ndarray::{ArrayView, Dim, ShapeBuilder};
 use std::ffi::c_void;
 use std::fmt;
 use std::mem;
-use std::ops;
 use std::rc::Rc;
 use std::{ptr, slice};
 
