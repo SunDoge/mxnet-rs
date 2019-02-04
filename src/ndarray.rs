@@ -470,4 +470,24 @@ mod tests {
         println!("{}", a1);
         println!("{:?}", a1.stype());
     }
+
+    #[test]
+    fn multi_thread() {
+        use std::thread;
+
+        let mut children = Vec::new();
+        for i in 0..5 {
+            children.push(thread::spawn(move || {
+                let a = NDArrayBuilder::new()
+                    .data(&[1.0, i as f32])
+                    .shape(&[2, 1])
+                    .create();
+                println!("{}", a);
+            }));
+        }
+
+        for child in children {
+            child.join().unwrap();
+        }
+    }
 }
