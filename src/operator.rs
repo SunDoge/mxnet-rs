@@ -34,48 +34,50 @@ pub struct Operator {
 
 impl Operator {
     pub fn new(operator_name: &str) -> Operator {
-        let handle = OP_MAP.get_symbol_creator(operator_name);
+        OP_MAP.with(|op_map| {
+            let handle = op_map.get_op_handle(operator_name);
 
-        // I have no idea why this piece of code is repeated
-        let mut name = ptr::null();
-        let mut description = ptr::null();
-        let mut num_args = 0;
-        let mut arg_names = ptr::null_mut();
-        let mut arg_descriptions = ptr::null_mut();
-        let mut arg_type_infos = ptr::null_mut();
-        let mut key_var_num_args = ptr::null();
-        let mut return_type = ptr::null();
+            // I have no idea why this piece of code is repeated
+            let mut name = ptr::null();
+            let mut description = ptr::null();
+            let mut num_args = 0;
+            let mut arg_names = ptr::null_mut();
+            let mut arg_descriptions = ptr::null_mut();
+            let mut arg_type_infos = ptr::null_mut();
+            let mut key_var_num_args = ptr::null();
+            let mut return_type = ptr::null();
 
-        check_call!(MXSymbolGetAtomicSymbolInfo(
-            // symbol_creators[i],
-            handle,
-            &mut name,
-            &mut description,
-            &mut num_args,
-            &mut arg_names,
-            &mut arg_type_infos,
-            &mut arg_descriptions,
-            &mut key_var_num_args,
-            &mut return_type
-        ));
+            check_call!(MXSymbolGetAtomicSymbolInfo(
+                // symbol_creators[i],
+                handle,
+                &mut name,
+                &mut description,
+                &mut num_args,
+                &mut arg_names,
+                &mut arg_type_infos,
+                &mut arg_descriptions,
+                &mut key_var_num_args,
+                &mut return_type
+            ));
 
-        let arg_names = unsafe { slice::from_raw_parts(arg_names, num_args as usize) }
-            .iter()
-            .map(|name| unsafe { CStr::from_ptr(*name).to_owned() })
-            .collect();
+            let arg_names = unsafe { slice::from_raw_parts(arg_names, num_args as usize) }
+                .iter()
+                .map(|name| unsafe { CStr::from_ptr(*name).to_owned() })
+                .collect();
 
-        Operator {
-            // params_desc: HashMap::new(),
-            // variable_params: false,
-            params: HashMap::new(),
-            index: 0,
-            // input_symbols: Vec::new(),
-            // input_ndarrays: Vec::new(),
-            inputs: Vec::new(),
-            input_keys: Vec::new(),
-            arg_names,
-            handle,
-        }
+            Operator {
+                // params_desc: HashMap::new(),
+                // variable_params: false,
+                params: HashMap::new(),
+                index: 0,
+                // input_symbols: Vec::new(),
+                // input_ndarrays: Vec::new(),
+                inputs: Vec::new(),
+                input_keys: Vec::new(),
+                arg_names,
+                handle,
+            }
+        })
     }
 
     // pub fn set_input()
@@ -245,16 +247,16 @@ mod tests {
         let a1 = ndarray::NDArrayBuilder::new().data(&[1.0]).create();
         let a2 = ndarray::NDArrayBuilder::new().data(&[1.0]).create();
         let mut a3 = ndarray::NDArray::new();
-        // Operator::new("_plus")
-        //     .push_input(&a1)
-        //     .push_input(&a2)
-        //     .invoke_with(&mut a3);
+        Operator::new("_plus")
+            .push_input(&a1)
+            .push_input(&a2)
+            .invoke_with(&mut a3);
 
-        // let s1 = symbol::Symbol::new("data");
-        // let op = Operator::new("_PlusScalar")
-        //     .push_input(&s1)
-        //     .set_param("scalar", &1.0)
-        //     .create_symbol("");
+        let s1 = symbol::Symbol::new("data");
+        let op = Operator::new("_PlusScalar")
+            .push_input(&s1)
+            .set_param("scalar", &1.0)
+            .create_symbol("");
 
         let op = Operator::new("_plus_scalar")
             .push_input(&a1)
