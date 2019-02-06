@@ -5,9 +5,9 @@ authors = ["SunDoge <384813529@qq.com>"]
 edition = "2018"
 
 [dependencies]
-mxnet-sys = { git="https://github.com/SunDoge/mxnet-sys" }
+mxnet-sys = { git = "https://github.com/SunDoge/mxnet-sys" }
 ndarray = "0.12"
 enum-str-derive = { git = "https://github.com/SunDoge/rust-enum-str-derive", branch = "dev" }
 
 [dev-dependencies]
-codegen = "0.1"
+codegen = { git="https://github.com/SunDoge/codegen.git", branch = "function" }

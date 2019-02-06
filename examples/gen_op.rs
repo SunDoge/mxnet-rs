@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate mxnet_rs;
 
-use codegen::Scope;
+use codegen::{Function, Module, Scope};
 use mxnet_sys::*;
 use std::collections::HashMap;
 use std::ffi;
@@ -12,9 +12,13 @@ fn main() {
     init_op_module("ndarray", make_ndarray_function);
 }
 
-fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str)) {
+// module_name决定写入哪个module
+// make_op_func是一个具名函数，不是一个closure
+fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str, &str) -> Function) {
+    // Top-level scope
     let mut scope = Scope::new();
 
+    // Get all Op names
     let mut plist = ptr::null_mut();
     let mut size = 0;
     check_call!(MXListAllOpNames(&mut size, &mut plist));
@@ -23,34 +27,45 @@ fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str)) {
     for i in 0..size as isize {
         op_names.push(unsafe { ffi::CStr::from_ptr(*plist.offset(i)) });
     }
-    // println!("{:?}", op_names);
-    let mut module_op = scope.new_module("op");
-    let mut modele_internal = scope.new_module("internal");
 
+    // println!("{:?}", op_names);
+    let mut module_op = Module::new("op");
+    let mut module_internal = Module::new("internal");
+
+    // Store submodule name, _name_ => name
     let mut submodule_dict = HashMap::new();
 
     for op_name_prefix in mxnet_rs::base::OP_NAME_PREFIX_LIST {
         submodule_dict.insert(
             op_name_prefix.to_string(),
-            op_name_prefix[1..op_name_prefix.len() - 1].to_string(),
+            // op_name_prefix[1..op_name_prefix.len() - 1].to_string(),
+            Module::new(&op_name_prefix[1..op_name_prefix.len() - 1]),
         );
     }
 
+    println!("submodule_dict: {:#?}", submodule_dict);
+
     for name in op_names {
+        // Get func handle
         let mut hdl = ptr::null_mut();
         check_call!(NNGetOpHandle(name.as_ptr(), &mut hdl));
 
+        // CStr => str
         let name_str = name.to_str().unwrap();
 
+        // Get op name prefix
         let op_name_prefix = get_op_name_prefix(name_str);
+        println!("op_name_prefix: {}", op_name_prefix);
+
         let mut module_name_local = module_name.to_string();
 
         let mut func_name = "";
-        let mut cur_module = "";
+        let mut cur_module = &mut Module::new("");
+
         if op_name_prefix.len() > 0 {
             if op_name_prefix != "_random_" || name_str.ends_with("_like") {
                 func_name = &name_str[op_name_prefix.len()..];
-                cur_module = &submodule_dict[&op_name_prefix];
+                cur_module = submodule_dict.get_mut(&op_name_prefix).unwrap();
                 module_name_local = format!(
                     "{}.{}",
                     module_name,
@@ -58,25 +73,30 @@ fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str)) {
                 );
             } else {
                 func_name = name_str;
-                cur_module = "internal";
+                cur_module = &mut module_internal;
             }
         } else if name_str.starts_with("_") {
             func_name = name_str;
-            cur_module = "internal";
+            cur_module = &mut module_internal;
         } else {
             func_name = name_str;
-            cur_module = "op";
+            cur_module = &mut module_op;
         }
 
-        let function = make_op_func(hdl, func_name);
+        let function = make_op_func(hdl, name_str, func_name);
+        cur_module.scope().push_fn(function);
 
-        if op_name_prefix == "_contrib_" {
-            let mut hdl = ptr::null_mut();
-            check_call!(NNGetOpHandle(name.as_ptr(), &mut hdl));
-            func_name = &name_str[op_name_prefix.len()..];
-            let function = make_op_func(hdl, func_name);
-        }
+        scope.push_module(cur_module.clone());
+        println!("{}", scope.to_string());
 
+        // if op_name_prefix == "_contrib_" {
+        //     let mut hdl = ptr::null_mut();
+        //     check_call!(NNGetOpHandle(name.as_ptr(), &mut hdl));
+        //     func_name = &name_str[op_name_prefix.len()..];
+        //     function = make_op_func(hdl, name_str, func_name);
+        // }
+
+        break;
         // println!("{}::{}", cur_module, func_name);
     }
 }
@@ -90,7 +110,12 @@ fn get_op_name_prefix(op_name: &str) -> String {
     "".to_string()
 }
 
-fn generate_ndarray_function_code(handle: NDArrayHandle, func_name: &str) -> (String, String) {
+// For NDArray
+fn generate_ndarray_function_code(
+    handle: NDArrayHandle,
+    name: &str,
+    func_name: &str,
+) -> (String, String) {
     let mut real_name = ptr::null();
     let mut desc = ptr::null();
     let mut num_args = 0;
@@ -154,6 +179,8 @@ fn generate_ndarray_function_code(handle: NDArrayHandle, func_name: &str) -> (St
         &ret_type,
     );
 
+    println!("ret_type: {}", ret_type);
+
     let mut dtype_name: Option<String> = None;
     let mut arr_name: Option<String> = None;
     let mut ndsignature: Vec<String> = Vec::new();
@@ -176,24 +203,28 @@ fn generate_ndarray_function_code(handle: NDArrayHandle, func_name: &str) -> (St
         }
         // break;
     }
-    println!("{:?}", signature);
+    // println!("{:?}", signature);
     (doc_str.clone(), doc_str)
 }
 
-fn make_ndarray_function(handle: NDArrayHandle, func_name: &str) {
-    let (code, doc_str) = generate_ndarray_function_code(handle, func_name);
+fn make_ndarray_function(handle: NDArrayHandle, name: &str, func_name: &str) -> Function {
+    let (code, doc_str) = generate_ndarray_function_code(handle, name, func_name);
+    let mut f = Function::new(func_name);
+    f.vis("pub").ret("NDArray");
+    f
     // println!("{}", code);
     // println!("{}", doc_str);
 }
 
+// Rust is strong-typed.
 fn build_ndarray_doc(
-    func_name: &str,
+    _func_name: &str,
     desc: &str,
-    arg_names: &Vec<String>,
-    arg_types: &Vec<String>,
-    arg_desc: &Vec<String>,
-    key_var_num_args: &str,
-    ret_type: &str,
+    _arg_names: &Vec<String>,
+    _arg_types: &Vec<String>,
+    _arg_desc: &Vec<String>,
+    _key_var_num_args: &str,
+    _ret_type: &str,
 ) -> String {
     let doc_str = format!("{}", desc);
     doc_str
