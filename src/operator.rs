@@ -253,12 +253,12 @@ mod tests {
             .invoke_with(&mut a3);
 
         let s1 = symbol::Symbol::new("data");
-        let op = Operator::new("_PlusScalar")
+        let _ = Operator::new("_PlusScalar")
             .push_input(&s1)
             .set_param("scalar", &1.0)
             .create_symbol("");
 
-        let op = Operator::new("_plus_scalar")
+        let _ = Operator::new("_plus_scalar")
             .push_input(&a1)
             .set_param_at(1, &0.1)
             .invoke_with(&mut a3);

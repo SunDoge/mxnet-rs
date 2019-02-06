@@ -1,6 +1,4 @@
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate enum_str_derive;
 
 #[macro_use]
@@ -20,12 +18,6 @@ mod tests {
 
     use super::*;
     // use test::Bencher;
-
-    struct Map {
-        pub map: std::collections::HashMap<std::ffi::CString, *mut std::ffi::c_void>
-    }
-    unsafe impl Send for Map {}
-    unsafe impl Sync for Map {}
 
     #[test]
     fn it_works() {

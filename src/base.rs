@@ -1,12 +1,3 @@
-use mxnet_sys::{
-    AtomicSymbolCreator, MXSymbolGetAtomicSymbolInfo, MXSymbolListAtomicSymbolCreators,
-    NNGetOpHandle, NNListAllOpNames, OpHandle,
-};
-use std::collections::HashMap;
-use std::ffi::{c_void, CStr};
-use std::ptr;
-use std::slice;
-
 pub const OP_NAME_PREFIX_LIST: &[&'static str; 5] =
     &["_contrib_", "_linalg_", "_sparse_", "_image_", "_random_"];
 
@@ -25,6 +16,6 @@ macro_rules! check_call {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
 }
