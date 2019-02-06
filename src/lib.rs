@@ -1,5 +1,3 @@
-#![feature(test)]
-
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -18,10 +16,10 @@ pub mod symbol;
 
 #[cfg(test)]
 mod tests {
-    extern crate test;
+    // extern crate test;
 
     use super::*;
-    use test::Bencher;
+    // use test::Bencher;
 
     struct Map {
         pub map: std::collections::HashMap<std::ffi::CString, *mut std::ffi::c_void>
@@ -34,19 +32,19 @@ mod tests {
         assert_eq!(2 + 2, 4);
     }
 
-    #[bench]
-    fn cache(b: &mut Bencher) {
-        let op_name = std::ffi::CString::new("_plus").unwrap();
-        let mut handle = std::ptr::null_mut();
-        check_call!(mxnet_sys::NNGetOpHandle(op_name.as_ptr(), &mut handle));
-        let mut map = std::collections::HashMap::new();
-        map.insert(op_name.clone(), handle);
-        b.iter(|| {
-            // let mut hdl = std::ptr::null_mut();
-            // check_call!(mxnet_sys::NNGetOpHandle(op_name.as_ptr(), &mut hdl));
+    // #[bench]
+    // fn cache(b: &mut Bencher) {
+    //     let op_name = std::ffi::CString::new("_plus").unwrap();
+    //     let mut handle = std::ptr::null_mut();
+    //     check_call!(mxnet_sys::NNGetOpHandle(op_name.as_ptr(), &mut handle));
+    //     let mut map = std::collections::HashMap::new();
+    //     map.insert(op_name.clone(), handle);
+    //     b.iter(|| {
+    //         // let mut hdl = std::ptr::null_mut();
+    //         // check_call!(mxnet_sys::NNGetOpHandle(op_name.as_ptr(), &mut hdl));
 
-            let hdl = map.get(&op_name).unwrap();
-            assert_eq!(*hdl, handle);
-        });
-    }
+    //         let hdl = map.get(&op_name).unwrap();
+    //         assert_eq!(*hdl, handle);
+    //     });
+    // }
 }

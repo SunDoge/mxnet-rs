@@ -161,7 +161,7 @@ fn generate_ndarray_function_code(handle: NDArrayHandle, func_name: &str) -> (St
     let mut ndarg_names: Vec<String> = Vec::new();
 
     for (name, atype) in arg_names.iter().zip(arg_types) {
-        // println!("{}: {}", name, atype);
+        println!("{}: {}", name, atype);
         // break;
         if name == "dtype" {
             // println!("{}: {}", name, atype);
