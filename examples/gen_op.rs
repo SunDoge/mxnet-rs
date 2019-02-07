@@ -12,6 +12,15 @@ fn main() {
     init_op_module("ndarray", make_ndarray_function);
 }
 
+fn type_dict() -> HashMap<String, String> {
+    let dict = [("boolean", "bool"), ("boolean or None", "Option<bool>")];
+    let mut map = HashMap::new();
+    for item in &dict {
+        map.insert(item.0.to_string(), item.1.to_string());
+    }
+    map
+}
+
 // module_name决定写入哪个module
 // make_op_func是一个具名函数，不是一个closure
 fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str, &str) -> Function) {
@@ -29,8 +38,10 @@ fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str, &str)
     }
 
     // println!("{:?}", op_names);
-    let mut module_op = Module::new("op");
-    let mut module_internal = Module::new("internal");
+    // let mut module_op = Module::new("op");
+    // let mut module_internal = Module::new("internal");
+    let module_op = "op";
+    let module_internal = "internal";
 
     // Store submodule name, _name_ => name
     let mut submodule_dict = HashMap::new();
@@ -38,8 +49,8 @@ fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str, &str)
     for op_name_prefix in mxnet_rs::base::OP_NAME_PREFIX_LIST {
         submodule_dict.insert(
             op_name_prefix.to_string(),
-            // op_name_prefix[1..op_name_prefix.len() - 1].to_string(),
-            Module::new(&op_name_prefix[1..op_name_prefix.len() - 1]),
+            op_name_prefix[1..op_name_prefix.len() - 1].to_string(),
+            // Module::new(&op_name_prefix[1..op_name_prefix.len() - 1]),
         );
     }
 
@@ -60,7 +71,8 @@ fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str, &str)
         let mut module_name_local = module_name.to_string();
 
         let mut func_name = "";
-        let mut cur_module = &mut Module::new("");
+        // let mut cur_module = &mut Module::new("");
+        let mut cur_module = "";
 
         if op_name_prefix.len() > 0 {
             if op_name_prefix != "_random_" || name_str.ends_with("_like") {
@@ -73,21 +85,23 @@ fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str, &str)
                 );
             } else {
                 func_name = name_str;
-                cur_module = &mut module_internal;
+                // cur_module = &mut module_internal;
             }
         } else if name_str.starts_with("_") {
             func_name = name_str;
-            cur_module = &mut module_internal;
+            cur_module = &module_internal;
         } else {
             func_name = name_str;
-            cur_module = &mut module_op;
+            cur_module = &module_op;
         }
 
         let function = make_op_func(hdl, name_str, func_name);
-        cur_module.scope().push_fn(function);
+        scope
+            .get_or_new_module(cur_module)
+            .scope()
+            .push_fn(function);
 
-        scope.push_module(cur_module.clone());
-        println!("{}", scope.to_string());
+        // scope.get_or_new_module(&cur_module.g) = cur_module;
 
         // if op_name_prefix == "_contrib_" {
         //     let mut hdl = ptr::null_mut();
@@ -96,9 +110,13 @@ fn init_op_module(module_name: &str, make_op_func: fn(NDArrayHandle, &str, &str)
         //     function = make_op_func(hdl, name_str, func_name);
         // }
 
-        break;
+        // break;
         // println!("{}::{}", cur_module, func_name);
     }
+
+    // scope.push_module(cur_module.clone());
+
+    // println!("{}", scope.to_string());
 }
 
 fn get_op_name_prefix(op_name: &str) -> String {
@@ -178,17 +196,20 @@ fn generate_ndarray_function_code(
         &key_var_num_args,
         &ret_type,
     );
-
-    println!("ret_type: {}", ret_type);
+    if ret_type.len() > 0 {
+        println!("ret_type: {}", ret_type);
+    }
+    
 
     let mut dtype_name: Option<String> = None;
     let mut arr_name: Option<String> = None;
     let mut ndsignature: Vec<String> = Vec::new();
     let mut signature: Vec<String> = Vec::new();
     let mut ndarg_names: Vec<String> = Vec::new();
+    let mut kwarg_names: Vec<String> = Vec::new();
 
     for (name, atype) in arg_names.iter().zip(arg_types) {
-        println!("{}: {}", name, atype);
+        // println!("{}: {}", name, atype);
         // break;
         if name == "dtype" {
             // println!("{}: {}", name, atype);
@@ -198,11 +219,21 @@ fn generate_ndarray_function_code(
             assert_eq!(arr_name, None);
 
             if atype.ends_with("[]") {
-                // ndsignature.push(format!("{}: "))
+                ndsignature.push(format!("*{}: ", name));
+                ndarg_names.push(name.clone());
+            } else {
+                ndsignature.push(format!("{}=None: ", name));
+                ndarg_names.push(name.clone());
             }
+        } else {
+            signature.push(format!("{}=_Null", name));
+            kwarg_names.push(name.clone());
         }
         // break;
     }
+
+    // println!("signature: {:#?}", signature);
+    // println!("ndsignature: {:#?}", ndsignature);
     // println!("{:?}", signature);
     (doc_str.clone(), doc_str)
 }

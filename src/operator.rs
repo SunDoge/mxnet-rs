@@ -82,15 +82,20 @@ impl Operator {
 
     // pub fn set_input()
 
-    pub fn create_symbol(&mut self, name: &str) -> Symbol {
+    pub fn create_symbol(&mut self, name: Option<&str>) -> Symbol {
         if self.input_keys.len() > 0 {
             assert_eq!(self.input_keys.len(), self.inputs.len());
         }
 
-        let pname = if name.is_empty() {
-            ptr::null()
-        } else {
+        // let pname = if name.is_empty() {
+        //     ptr::null()
+        // } else {
+        //     CString::new(name).unwrap().as_ptr()
+        // };
+        let pname = if let Some(name) = name {
             CString::new(name).unwrap().as_ptr()
+        } else {
+            ptr::null()
         };
 
         let mut symbol_handle = ptr::null_mut();
@@ -201,7 +206,8 @@ impl Operator {
         self
     }
 
-    pub fn invoke(&mut self) -> Vec<NDArray> {
+    // Currently no function return NDArray[]
+    pub fn invoke_many(&mut self) -> Vec<NDArray> {
         let mut output_handles = Vec::new();
         self.invoke_with_handles(&mut output_handles);
         let mut outputs = Vec::new();
@@ -209,6 +215,12 @@ impl Operator {
             outputs.push(NDArray::from(*handle));
         }
         outputs
+    }
+
+    pub fn invoke(&mut self) -> NDArray {
+        let mut ret = NDArray::new();
+        self.invoke_with(&mut ret);
+        ret
     }
 
     pub fn set_param(&mut self, name: &str, value: &impl ToString) -> &mut Self {
@@ -256,7 +268,7 @@ mod tests {
         let _ = Operator::new("_PlusScalar")
             .push_input(&s1)
             .set_param("scalar", &1.0)
-            .create_symbol("");
+            .create_symbol(None);
 
         let _ = Operator::new("_plus_scalar")
             .push_input(&a1)

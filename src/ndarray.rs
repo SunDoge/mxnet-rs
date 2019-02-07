@@ -27,12 +27,10 @@ macro_rules! ops {
             type Output = NDArray;
 
             fn $op_method(self, rhs: NDArray) -> NDArray {
-                let mut ret = NDArray::new();
                 Operator::new($op_name)
                     .push_input(&self)
                     .push_input(&rhs)
-                    .invoke_with(&mut ret);
-                ret
+                    .invoke()
             }
         }
 
@@ -40,13 +38,11 @@ macro_rules! ops {
             type Output = NDArray;
 
             fn $op_method(self, scalar: f32) -> NDArray {
-                let mut ret = NDArray::new();
                 Operator::new(concat!($op_name, "_scalar"))
                     .push_input(&self)
                     // .set_param("scalar", &scalar)
                     .push_param(&scalar)
-                    .invoke_with(&mut ret);
-                ret
+                    .invoke()
             }
         }
 

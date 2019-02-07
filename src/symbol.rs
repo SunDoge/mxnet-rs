@@ -16,7 +16,7 @@ macro_rules! ops {
                 Operator::new($op_name)
                     .push_input(&self)
                     .push_input(&rhs)
-                    .create_symbol("")
+                    .create_symbol(None)
             }
         }
 
@@ -27,7 +27,7 @@ macro_rules! ops {
                 Operator::new(concat!($op_name, "Scalar"))
                     .push_input(&self)
                     .set_param("scalar", &rhs)
-                    .create_symbol("")
+                    .create_symbol(None)
             }
         }
     };
