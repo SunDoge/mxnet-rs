@@ -13,7 +13,6 @@ use ndarray::{ArrayView, Dim, ShapeBuilder};
 use std::ffi::c_void;
 use std::fmt;
 use std::mem;
-use std::ops;
 use std::rc::Rc;
 use std::{ptr, slice};
 
@@ -28,12 +27,10 @@ macro_rules! ops {
             type Output = NDArray;
 
             fn $op_method(self, rhs: NDArray) -> NDArray {
-                let mut ret = NDArray::new();
                 Operator::new($op_name)
                     .push_input(&self)
                     .push_input(&rhs)
-                    .invoke_with(&mut ret);
-                ret
+                    .invoke()
             }
         }
 
@@ -41,13 +38,11 @@ macro_rules! ops {
             type Output = NDArray;
 
             fn $op_method(self, scalar: f32) -> NDArray {
-                let mut ret = NDArray::new();
                 Operator::new(concat!($op_name, "_scalar"))
                     .push_input(&self)
                     // .set_param("scalar", &scalar)
                     .push_param(&scalar)
-                    .invoke_with(&mut ret);
-                ret
+                    .invoke()
             }
         }
 
@@ -469,5 +464,25 @@ mod tests {
         a1.wait_to_read();
         println!("{}", a1);
         println!("{:?}", a1.stype());
+    }
+
+    #[test]
+    fn multi_thread() {
+        use std::thread;
+
+        let mut children = Vec::new();
+        for i in 0..5 {
+            children.push(thread::spawn(move || {
+                let a = NDArrayBuilder::new()
+                    .data(&[1.0, i as f32])
+                    .shape(&[2, 1])
+                    .create();
+                println!("{}", a);
+            }));
+        }
+
+        for child in children {
+            child.join().unwrap();
+        }
     }
 }

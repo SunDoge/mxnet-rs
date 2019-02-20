@@ -10,3 +10,4 @@ Add these lines to your `.bashrc` or `.zshrc`, using your own mxnet path from py
 export MXNET_PATH=/home/sundoge/miniconda3/envs/mxnet1.3/lib/python3.6/site-packages/mxnet
 export LD_LIBRARY_PATH=$MXNET_PATH:$LD_LIBRARY_PATH
 ```
+On macos, change `LD_LIBRARY_PATH` to `DYLD_LIBRARY_PATH`.

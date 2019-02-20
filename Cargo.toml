@@ -6,9 +6,8 @@ edition = "2018"
 
 [dependencies]
 mxnet-sys = { path="mxnet-sys" }
-lazy_static = "1.2"
 ndarray = "0.12"
-enum-str-derive = { git = "https://github.com/SunDoge/rust-enum-str-derive" }
+enum-str-derive = { git = "https://github.com/SunDoge/rust-enum-str-derive", branch = "dev" }
 
 [dev-dependencies]
-codegen = "0.1"
+codegen = { git="https://github.com/SunDoge/codegen.git", branch = "function" }
