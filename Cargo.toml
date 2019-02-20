@@ -5,7 +5,7 @@ authors = ["SunDoge <384813529@qq.com>"]
 edition = "2018"
 
 [dependencies]
-mxnet-sys = { git="https://github.com/SunDoge/mxnet-sys" }
+mxnet-sys = { path="mxnet-sys" }
 lazy_static = "1.2"
 ndarray = "0.12"
 enum-str-derive = { git = "https://github.com/SunDoge/rust-enum-str-derive" }
